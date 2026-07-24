@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Sang'a Library Manager</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU2FuZ2EgTGlicmFyeSIsInNob3J0X25hbWUiOiJMaWJyYXJ5Iiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMxYTRkMmUiLCJ0aGVtZV9jb2xvciI6IiMxYTRkMmUifQ==">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --green:#1a4d2e; --green-dark:#123620; --green-light:#2e6b45;
+  --gold:#d4af37; --gold-light:#f0d878;
+  --bg:#f5f3ec; --card:#ffffff; --text:#1e2a22; --muted:#6b7a70;
+  --danger:#b3402f; --warn:#c98a1f; --ok:#2e7d4f; --border:#e2ddd0;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+body.dark{
+  --bg:#10160f; --card:#182018; --text:#eef0e8; --muted:#9aa89d; --border:#2b352c;
+  --green:#2e6b45; --green-dark:#1a4d2e;
+}
+html,body{margin:0;padding:0;height:100%;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+body{padding-bottom:env(safe-area-inset-bottom); overscroll-behavior-y:contain;}
+input,select,textarea,button{font-size:16px; font-family:inherit;}
+header{background:linear-gradient(135deg,var(--green),var(--green-dark)); color:#fff; padding:14px 16px; padding-top:calc(14px + env(safe-area-inset-top)); display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:50; box-shadow:0 2px 8px rgba(0,0,0,.2);}
+header .logo{width:36px;height:36px;border-radius:8px;background:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--green-dark);flex-shrink:0;}
+header h1{font-size:16px;margin:0;font-weight:700;flex:1;line-height:1.2;}
+header .sub{font-size:11px;opacity:.85;font-weight:400;}
+header .role-badge{background:rgba(255,255,255,.18); padding:4px 9px; border-radius:20px; font-size:11px;}
+#syncDot{width:8px;height:8px;border-radius:50%;background:#7bd88f;display:inline-block;margin-right:4px;box-shadow:0 0 6px #7bd88f;}
+#syncDot.off{background:#e05c5c;box-shadow:0 0 6px #e05c5c;}
+main{padding:12px; max-width:900px; margin:0 auto; min-height:calc(100dvh - 130px);}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
+@media(max-width:420px){.grid3{grid-template-columns:1fr 1fr;}}
+.stat{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px; text-align:center;}
+.stat .num{font-size:24px; font-weight:800; color:var(--green); }
+body.dark .stat .num{color:var(--gold-light);}
+.stat .lbl{font-size:11px; color:var(--muted); margin-top:2px;}
+.stat.danger .num{color:var(--danger);}
+.stat.warn .num{color:var(--warn);}
+h2.section{font-size:14px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin:18px 4px 8px;}
+label{display:block; font-size:12px; color:var(--muted); margin:8px 0 4px;}
+input[type=text],input[type=number],input[type=date],input[type=password],select,textarea{
+  width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text);
+}
+textarea{resize:vertical;}
+button{cursor:pointer; border:none; border-radius:10px; padding:10px 14px; font-weight:600;}
+.btn-primary{background:var(--green); color:#fff;}
+.btn-gold{background:var(--gold); color:var(--green-dark);}
+.btn-outline{background:transparent; border:1px solid var(--green); color:var(--green);}
+body.dark .btn-outline{color:var(--gold-light); border-color:var(--gold-light);}
+.btn-danger{background:var(--danger); color:#fff;}
+.btn-sm{padding:6px 10px; font-size:12px; border-radius:8px;}
+.row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+.tabs{display:flex; overflow-x:auto; gap:6px; padding:8px 12px; background:var(--card); border-bottom:1px solid var(--border); position:sticky; top:64px; z-index:40; scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{padding:8px 12px; border-radius:20px; background:var(--bg); color:var(--muted); font-size:12px; font-weight:600; white-space:nowrap; border:1px solid var(--border);}
+.tab.active{background:var(--green); color:#fff; border-color:var(--green);}
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th,td{text-align:left; padding:8px 6px; border-bottom:1px solid var(--border);}
+th{color:var(--muted); font-size:11px; text-transform:uppercase;}
+.badge{padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;}
+.badge.ok{background:#dff3e6; color:var(--ok);}
+.badge.warn{background:#fbeecd; color:var(--warn);}
+.badge.danger{background:#f8ddd7; color:var(--danger);}
+body.dark .badge.ok{background:#173321;} body.dark .badge.warn{background:#3a2e12;} body.dark .badge.danger{background:#3a1c17;}
+.list-item{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);}
+.list-item:last-child{border-bottom:none;}
+.searchbar{display:flex; gap:8px; margin-bottom:10px;}
+.searchbar input{flex:1;}
+.modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:flex-end; justify-content:center; z-index:100;}
+.modal-bg.show{display:flex;}
+.modal{background:var(--card); width:100%; max-width:600px; max-height:90dvh; overflow-y:auto; border-radius:18px 18px 0 0; padding:18px; padding-bottom:calc(18px + env(safe-area-inset-bottom));}
+.modal h3{margin-top:0;}
+.close-x{float:right; background:var(--bg); border-radius:50%; width:30px; height:30px; text-align:center; line-height:30px; font-weight:700;}
+nav.bottom{position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--border); display:flex; padding:6px 4px calc(6px + env(safe-area-inset-bottom)); z-index:50;}
+nav.bottom button{flex:1; background:none; color:var(--muted); font-size:10px; padding:6px 2px; border-radius:10px; display:flex; flex-direction:column; align-items:center; gap:2px;}
+nav.bottom button.active{color:var(--green); background:var(--bg);}
+body.dark nav.bottom button.active{color:var(--gold-light);}
+.icon{font-size:18px;}
+.chip{display:inline-block; background:var(--bg); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-size:11px; margin:2px;}
+.pin-screen{min-height:100dvh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; padding:20px; text-align:center;}
+.pin-screen input{width:180px; text-align:center; letter-spacing:6px; font-size:20px;}
+.empty{text-align:center; color:var(--muted); padding:30px 10px; font-size:13px;}
+.toast{position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--green-dark); color:#fff; padding:10px 18px; border-radius:20px; font-size:13px; z-index:200; opacity:0; transition:opacity .3s;}
+.toast.show{opacity:1;}
+canvas{max-width:100%;}
+.bar-row{display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12px;}
+.bar-track{flex:1; background:var(--bg); border-radius:6px; height:14px; overflow:hidden;}
+.bar-fill{height:100%; background:var(--green); border-radius:6px;}
+a.linklike{color:var(--green); text-decoration:underline; cursor:pointer;}
+body.dark a.linklike{color:var(--gold-light);}
+</style>
+</head>
+<body>
+
+<div id="pinScreen" class="pin-screen">
+  <div class="logo" style="width:60px;height:60px;font-size:26px;">SL</div>
+  <h2 style="margin:0;">Sang'a Library Manager</h2>
+  <div style="color:var(--muted); font-size:13px;">Enter your access PIN</div>
+  <input type="password" id="pinInput" inputmode="numeric" maxlength="6" placeholder="••••">
+  <button class="btn-primary" onclick="tryLogin()" style="width:180px;">Sign In</button>
+  <div id="pinError" style="color:var(--danger); font-size:12px; height:16px;"></div>
+  <div style="font-size:11px; color:var(--muted); margin-top:20px;">Roles: Administrator · Librarian · Teacher · Student (view-only)</div>
+</div>
+
+<div id="app" style="display:none;">
+<header>
+  <div class="logo">SL</div>
+  <h1>Sang'a Library <div class="sub"><span id="syncDot"></span><span id="syncTxt">Live</span></div></h1>
+  <div class="role-badge" id="roleBadge">—</div>
+  <button class="btn-sm btn-outline" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.5);" onclick="logout()">Exit</button>
+</header>
+
+<div class="tabs" id="tabsBar"></div>
+
+<main id="main"></main>
+
+<nav class="bottom" id="bottomNav"></nav>
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ FIREBASE CONFIG ============
+   Replace with your Firebase project config from
+   Firebase Console > Project Settings > General > Your apps.
+   Then enable Cloud Firestore in test mode (or set rules below). */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+try{ db.enablePersistence({synchronizeTabs:true}); }catch(e){}
+
+/* ============ STATE ============ */
+let STATE = {
+  books:[], members:[], transactions:[], categories:[], shelves:[], notifications:[],
+  settings:{ schoolName:"Sang'a Comprehensive School", logoText:"SL", borrowPeriodDays:14,
+             fineDailyRate:5, maxLoansStudent:2, maxLoansTeacher:5,
+             pins:{admin:"2026", librarian:"1234", teacher:"1122", student:"1111"} }
+};
+let role = null; // administrator | librarian | teacher | student
+let activeTab = "dashboard";
+let unsubs = [];
+
+/* ============ UTIL ============ */
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function addDays(dateStr,n){ const d=new Date(dateStr); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/86400000); }
+function fmtDate(d){ if(!d) return '—'; const dt=new Date(d); return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function can(action){
+  // administrator: all. librarian: all except settings/users. teacher: issue/return + view. student: view only.
+  const perms = {
+    administrator:['books','members','issue','inventory','settings','reports'],
+    librarian:['books','members','issue','inventory','reports'],
+    teacher:['issue','reports'],
+    student:[]
+  };
+  return (perms[role]||[]).includes(action);
+}
+
+/* ============ AUTH ============ */
+function tryLogin(){
+  const val = document.getElementById('pinInput').value.trim();
+  const p = STATE.settings.pins || {};
+  let matched = null;
+  if(val===p.admin) matched='administrator';
+  else if(val===p.librarian) matched='librarian';
+  else if(val===p.teacher) matched='teacher';
+  else if(val===p.student) matched='student';
+  if(!matched){ document.getElementById('pinError').textContent='Incorrect PIN'; return; }
+  role = matched;
+  sessionStorage.setItem('sanga_lib_role', role);
+  document.getElementById('pinScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('roleBadge').textContent = role.charAt(0).toUpperCase()+role.slice(1);
+  buildNav();
+  render();
+}
+function logout(){
+  sessionStorage.removeItem('sanga_lib_role');
+  role=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('pinScreen').style.display='flex';
+  document.getElementById('pinInput').value='';
+}
+
+/* ============ FIRESTORE SYNC ============ */
+function listen(){
+  const dot=document.getElementById('syncDot'), txt=document.getElementById('syncTxt');
+  const setLive=()=>{dot.classList.remove('off'); txt.textContent='Live';};
+  const setOff=()=>{dot.classList.add('off'); txt.textContent='Offline';};
+
+  unsubs.push(db.collection('books').onSnapshot(s=>{ STATE.books = s.docs.map(d=>({id:d.id,...d.data()})); setLive(); render(); }, setOff));
+  unsubs.push(db.collection('members').onSnapshot(s=>{ STATE.members = s.docs.map(d=>({id:d.id,...d.data()})); render(); }));
+  unsubs.push(db.collection('transactions').onSnapshot(s=>{ STATE.transactions = s.docs.map(d=>({id:d.id,...d.data()})); render(); }));
+  unsubs.push(db.collection('categories').onSnapshot(s=>{ STATE.categories = s.docs.map(d=>({id:d.id,...d.data()})); render(); }));
+  unsubs.push(db.collection('shelves').onSnapshot(s=>{ STATE.shelves = s.docs.map(d=>({id:d.id,...d.data()})); render(); }));
+  unsubs.push(db.collection('notifications').onSnapshot(s=>{ STATE.notifications = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')); render(); }));
+  db.collection('meta').doc('settings').onSnapshot(d=>{
+    if(d.exists){ STATE.settings = {...STATE.settings, ...d.data()}; }
+    else { db.collection('meta').doc('settings').set(STATE.settings); }
+    if(document.body.classList.contains('dark') !== !!STATE.settings.darkMode){
+      document.body.classList.toggle('dark', !!STATE.settings.darkMode);
+    }
+    render();
+  });
+}
+function saveSettings(){ db.collection('meta').doc('settings').set(STATE.settings, {merge:true}); }
+
+/* ============ BOOK STATUS HELPERS ============ */
+function bookCopiesAvailable(book){
+  const issuedCount = STATE.transactions.filter(t=>t.bookId===book.id && t.status==='issued').length;
+  return Math.max(0,(book.copies||1) - issuedCount - (book.lost||0) - (book.damaged||0));
+}
+function totalBooks(){ return STATE.books.reduce((a,b)=>a+(b.copies||1),0); }
+function totalAvailable(){ return STATE.books.reduce((a,b)=>a+bookCopiesAvailable(b),0); }
+function totalIssued(){ return STATE.transactions.filter(t=>t.status==='issued').length; }
+function overdueList(){ return STATE.transactions.filter(t=>t.status==='issued' && t.dueDate < todayISO()); }
+function fineFor(t){ if(t.status!=='issued'&&t.status!=='returned') return 0;
+  const endDate = t.status==='returned' ? t.returnDate : todayISO();
+  const late = daysBetween(t.dueDate, endDate);
+  return late>0 ? late*(STATE.settings.fineDailyRate||0) : 0;
+}
+
+/* ============ RENDER SHELL ============ */
+const NAV = [
+  {id:'dashboard', icon:'🏠', label:'Home', need:null},
+  {id:'books', icon:'📚', label:'Books', need:null},
+  {id:'members', icon:'👥', label:'Members', need:null},
+  {id:'issue', icon:'🔄', label:'Issue/Return', need:'issue'},
+  {id:'inventory', icon:'📦', label:'Inventory', need:'inventory'},
+  {id:'reports', icon:'📊', label:'Reports', need:null},
+  {id:'notify', icon:'🔔', label:'Alerts', need:null},
+  {id:'settings', icon:'⚙️', label:'Settings', need:'settings'},
+];
+function visibleNav(){ return NAV.filter(n=> n.need===null || can(n.need)); }
+function buildNav(){
+  const items = visibleNav();
+  document.getElementById('bottomNav').innerHTML = items.map(n=>
+    `<button class="${activeTab===n.id?'active':''}" onclick="setTab('${n.id}')"><span class="icon">${n.icon}</span>${n.label}</button>`
+  ).join('');
+  document.getElementById('tabsBar').innerHTML = items.map(n=>
+    `<div class="tab ${activeTab===n.id?'active':''}" onclick="setTab('${n.id}')">${n.icon} ${n.label}</div>`
+  ).join('');
+}
+function setTab(id){ activeTab=id; buildNav(); render(); window.scrollTo(0,0); }
+
+function render(){
+  if(!role) return;
+  buildNav();
+  const m = document.getElementById('main');
+  if(activeTab==='dashboard') m.innerHTML = renderDashboard();
+  else if(activeTab==='books') m.innerHTML = renderBooks();
+  else if(activeTab==='members') m.innerHTML = renderMembers();
+  else if(activeTab==='issue') m.innerHTML = renderIssue();
+  else if(activeTab==='inventory') m.innerHTML = renderInventory();
+  else if(activeTab==='reports') m.innerHTML = renderReports();
+  else if(activeTab==='notify') m.innerHTML = renderNotify();
+  else if(activeTab==='settings') m.innerHTML = renderSettings();
+}
+
+/* ============ DASHBOARD ============ */
+function renderDashboard(){
+  const overdue = overdueList();
+  const learners = STATE.members.filter(x=>x.type==='learner').length;
+  const teachers = STATE.members.filter(x=>x.type==='teacher').length;
+  const recent = [...STATE.transactions].sort((a,b)=>(b.issueDate||'').localeCompare(a.issueDate||'')).slice(0,8);
+
+  // category breakdown
+  const catCounts={};
+  STATE.books.forEach(b=>{ const c=b.category||'Uncategorized'; catCounts[c]=(catCounts[c]||0)+(b.copies||1); });
+  const maxCat = Math.max(1,...Object.values(catCounts));
+
+  return `
+  <h2 class="section">${esc(STATE.settings.schoolName)} — Overview</h2>
+  <div class="grid3">
+    <div class="stat"><div class="num">${totalBooks()}</div><div class="lbl">Total Books</div></div>
+    <div class="stat"><div class="num">${totalAvailable()}</div><div class="lbl">Available</div></div>
+    <div class="stat"><div class="num">${totalIssued()}</div><div class="lbl">Issued</div></div>
+    <div class="stat danger"><div class="num">${overdue.length}</div><div class="lbl">Overdue</div></div>
+    <div class="stat"><div class="num">${learners}</div><div class="lbl">Learners</div></div>
+    <div class="stat"><div class="num">${teachers}</div><div class="lbl">Teachers</div></div>
+  </div>
+
+  <h2 class="section">Books by Category</h2>
+  <div class="card">
+    ${Object.keys(catCounts).length? Object.entries(catCounts).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`
+      <div class="bar-row"><div style="width:90px;">${esc(c)}</div><div class="bar-track"><div class="bar-fill" style="width:${(n/maxCat*100).toFixed(0)}%"></div></div><div>${n}</div></div>
+    `).join('') : `<div class="empty">No books yet</div>`}
+  </div>
+
+  <h2 class="section">Recent Transactions</h2>
+  <div class="card">
+    ${recent.length? recent.map(t=>{
+      const b=STATE.books.find(x=>x.id===t.bookId), mem=STATE.members.find(x=>x.id===t.memberId);
+      return `<div class="list-item"><div><b>${esc(b?b.title:'—')}</b><br><span style="color:var(--muted); font-size:11px;">${esc(mem?mem.name:'—')} · ${fmtDate(t.issueDate)}</span></div>${statusBadge(t)}</div>`;
+    }).join('') : `<div class="empty">No transactions yet</div>`}
+  </div>
+  `;
+}
+function statusBadge(t){
+  if(t.status==='returned') return `<span class="badge ok">Returned</span>`;
+  if(t.dueDate < todayISO()) return `<span class="badge danger">Overdue</span>`;
+  return `<span class="badge warn">Issued</span>`;
+}
+
+/* ============ BOOKS ============ */
+let bookSearch='';
+function renderBooks(){
+  const q = bookSearch.toLowerCase();
+  const list = STATE.books.filter(b=> !q || [b.title,b.author,b.isbn,b.subject,b.category].some(f=>(f||'').toLowerCase().includes(q)));
+  return `
+  <div class="searchbar">
+    <input type="text" placeholder="Search title, author, ISBN, subject..." value="${esc(bookSearch)}" oninput="bookSearch=this.value; render();">
+    ${can('books')?`<button class="btn-primary" onclick="openBookModal()">+ Add</button>`:''}
+  </div>
+  <div class="card" style="padding:0;">
+    ${list.length? list.map(b=>{
+      const avail = bookCopiesAvailable(b);
+      return `<div class="list-item" style="padding:10px 12px;">
+        <div style="flex:1; min-width:0;">
+          <b>${esc(b.title)}</b><br>
+          <span style="font-size:11px; color:var(--muted);">${esc(b.author||'Unknown')} · ${esc(b.isbn||'no ISBN')}</span><br>
+          <span class="chip">${esc(b.category||'Uncategorized')}</span><span class="chip">Shelf: ${esc(b.shelf||'—')}</span>
+        </div>
+        <div style="text-align:right;">
+          <span class="badge ${avail>0?'ok':'danger'}">${avail}/${b.copies||1}</span><br>
+          ${can('books')?`<button class="btn-sm btn-outline" style="margin-top:6px;" onclick="openBookModal('${b.id}')">Edit</button>`:''}
+        </div>
+      </div>`;
+    }).join('') : `<div class="empty">No books found</div>`}
+  </div>
+  `;
+}
+function openBookModal(id){
+  const b = id? STATE.books.find(x=>x.id===id) : {title:'',author:'',isbn:'',subject:'',category:'',shelf:'',copies:1,barcode:''};
+  const cats = STATE.categories.map(c=>c.name);
+  document.getElementById('modalBody').innerHTML = `
+    <span class="close-x" onclick="closeModal()">✕</span>
+    <h3>${id?'Edit Book':'Add Book'}</h3>
+    <label>Title</label><input id="f_title" type="text" value="${esc(b.title)}">
+    <label>Author</label><input id="f_author" type="text" value="${esc(b.author)}">
+    <div class="grid2">
+      <div><label>ISBN</label><input id="f_isbn" type="text" value="${esc(b.isbn)}"></div>
+      <div><label>Barcode/QR ID</label><input id="f_barcode" type="text" value="${esc(b.barcode)}"></div>
+    </div>
+    <label>Subject</label><input id="f_subject" type="text" value="${esc(b.subject)}">
+    <div class="grid2">
+      <div><label>Category</label><input id="f_category" list="catList" type="text" value="${esc(b.category)}">
+        <datalist id="catList">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+      </div>
+      <div><label>Shelf/Location</label><input id="f_shelf" type="text" value="${esc(b.shelf)}"></div>
+    </div>
+    <label>Number of Copies</label><input id="f_copies" type="number" min="1" value="${b.copies||1}">
+    <div class="row" style="margin-top:14px; justify-content:space-between;">
+      ${id?`<button class="btn-danger" onclick="deleteBook('${id}')">Delete</button>`:'<span></span>'}
+      <button class="btn-primary" onclick="saveBook('${id||''}')">Save</button>
+    </div>
+  `;
+  showModal();
+}
+function saveBook(id){
+  const data = {
+    title: document.getElementById('f_title').value.trim(),
+    author: document.getElementById('f_author').value.trim(),
+    isbn: document.getElementById('f_isbn').value.trim(),
+    barcode: document.getElementById('f_barcode').value.trim(),
+    subject: document.getElementById('f_subject').value.trim(),
+    category: document.getElementById('f_category').value.trim(),
+    shelf: document.getElementById('f_shelf').value.trim(),
+    copies: parseInt(document.getElementById('f_copies').value)||1,
+  };
+  if(!data.title){ toast('Title is required'); return; }
+  if(!STATE.categories.find(c=>c.name===data.category) && data.category){
+    db.collection('categories').add({name:data.category});
+  }
+  if(!STATE.shelves.find(s=>s.name===data.shelf) && data.shelf){
+    db.collection('shelves').add({name:data.shelf});
+  }
+  if(id){
+    db.collection('books').doc(id).update(data);
+    addNotification(`Updated book: ${data.title}`);
+  } else {
+    data.lost=0; data.damaged=0; data.donated=false;
+    db.collection('books').add(data);
+    addNotification(`New book added: ${data.title}`);
+  }
+  closeModal(); toast('Book saved');
+}
+function deleteBook(id){
+  if(!confirm('Delete this book? This cannot be undone.')) return;
+  db.collection('books').doc(id).delete();
+  closeModal(); toast('Book deleted');
+}
+
+/* ============ MEMBERS ============ */
+let memberSearch='', memberFilter='all';
+function renderMembers(){
+  const q=memberSearch.toLowerCase();
+  let list = STATE.members.filter(m=> !q || [m.name,m.className,m.stream].some(f=>(f||'').toLowerCase().includes(q)));
+  if(memberFilter!=='all') list = list.filter(m=>m.type===memberFilter);
+  return `
+  <div class="searchbar">
+    <input type="text" placeholder="Search by name, class, stream..." value="${esc(memberSearch)}" oninput="memberSearch=this.value; render();">
+    ${can('members')?`<button class="btn-primary" onclick="openMemberModal()">+ Add</button>`:''}
+  </div>
+  <div class="row" style="margin-bottom:10px;">
+    ${['all','learner','teacher'].map(f=>`<div class="tab ${memberFilter===f?'active':''}" onclick="memberFilter='${f}'; render();">${f==='all'?'All':f.charAt(0).toUpperCase()+f.slice(1)+'s'}</div>`).join('')}
+  </div>
+  <div class="card" style="padding:0;">
+    ${list.length? list.map(m=>{
+      const activeLoans = STATE.transactions.filter(t=>t.memberId===m.id && t.status==='issued').length;
+      return `<div class="list-item" style="padding:10px 12px;">
+        <div>
+          <b>${esc(m.name)}</b> <span class="chip">${m.type}</span><br>
+          <span style="font-size:11px; color:var(--muted);">${m.type==='learner'? `${esc(m.className||'')} ${esc(m.stream||'')}`:'Staff'} · Card: ${esc(m.cardNo||'—')}</span>
+        </div>
+        <div style="text-align:right;">
+          <span class="badge ${activeLoans>0?'warn':'ok'}">${activeLoans} out</span><br>
+          <button class="btn-sm btn-outline" style="margin-top:6px;" onclick="viewHistory('${m.id}')">History</button>
+          ${can('members')?`<button class="btn-sm btn-outline" style="margin-top:6px;" onclick="openMemberModal('${m.id}')">Edit</button>`:''}
+        </div>
+      </div>`;
+    }).join('') : `<div class="empty">No members found</div>`}
+  </div>
+  `;
+}
+function openMemberModal(id){
+  const m = id? STATE.members.find(x=>x.id===id) : {name:'',type:'learner',className:'',stream:'',cardNo:'',contact:''};
+  document.getElementById('modalBody').innerHTML = `
+    <span class="close-x" onclick="closeModal()">✕</span>
+    <h3>${id?'Edit Member':'Register Member'}</h3>
+    <label>Type</label>
+    <select id="f_type" onchange="document.getElementById('classFields').style.display=this.value==='learner'?'block':'none'">
+      <option value="learner" ${m.type==='learner'?'selected':''}>Learner</option>
+      <option value="teacher" ${m.type==='teacher'?'selected':''}>Teacher</option>
+    </select>
+    <label>Full Name</label><input id="f_name" type="text" value="${esc(m.name)}">
+    <div id="classFields" style="display:${m.type==='learner'?'block':'none'}">
+      <div class="grid2">
+        <div><label>Class</label><input id="f_class" type="text" value="${esc(m.className)}" placeholder="e.g. Grade 7"></div>
+        <div><label>Stream</label><input id="f_stream" type="text" value="${esc(m.stream)}" placeholder="e.g. East"></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div><label>Membership Card No.</label><input id="f_card" type="text" value="${esc(m.cardNo)}"></div>
+      <div><label>Contact (optional)</label><input id="f_contact" type="text" value="${esc(m.contact)}"></div>
+    </div>
+    <div class="row" style="margin-top:14px; justify-content:space-between;">
+      ${id?`<button class="btn-danger" onclick="deleteMember('${id}')">Delete</button>`:'<span></span>'}
+      <button class="btn-primary" onclick="saveMember('${id||''}')">Save</button>
+    </div>
+  `;
+  showModal();
+}
+function saveMember(id){
+  const data = {
+    type: document.getElementById('f_type').value,
+    name: document.getElementById('f_name').value.trim(),
+    className: document.getElementById('f_class')?.value.trim()||'',
+    stream: document.getElementById('f_stream')?.value.trim()||'',
+    cardNo: document.getElementById('f_card').value.trim(),
+    contact: document.getElementById('f_contact').value.trim(),
+  };
+  if(!data.name){ toast('Name is required'); return; }
+  if(id) db.collection('members').doc(id).update(data);
+  else db.collection('members').add(data);
+  closeModal(); toast('Member saved');
+}
+function deleteMember(id){
+  if(!confirm('Delete this member?')) return;
+  db.collection('members').doc(id).delete();
+  closeModal(); toast('Member deleted');
+}
+function viewHistory(id){
+  const m = STATE.members.find(x=>x.id===id);
+  const hist = STATE.transactions.filter(t=>t.memberId===id).sort((a,b)=>(b.issueDate||'').localeCompare(a.issueDate||''));
+  document.getElementById('modalBody').innerHTML = `
+    <span class="close-x" onclick="closeModal()">✕</span>
+    <h3>${esc(m.name)}'s Borrowing History</h3>
+    <table><tr><th>Book</th><th>Issued</th><th>Due</th><th>Status</th></tr>
+    ${hist.map(t=>{ const b=STATE.books.find(x=>x.id===t.bookId);
+      return `<tr><td>${esc(b?b.title:'—')}</td><td>${fmtDate(t.issueDate)}</td><td>${fmtDate(t.dueDate)}</td><td>${statusBadge(t)}</td></tr>`;
+    }).join('') || '<tr><td colspan=4 class="empty">No history</td></tr>'}
+    </table>
+  `;
+  showModal();
+}
+
+/* ============ ISSUE & RETURN ============ */
+function renderIssue(){
+  const active = STATE.transactions.filter(t=>t.status==='issued').sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+  return `
+  <div class="row" style="margin-bottom:10px;">
+    <button class="btn-primary" onclick="openIssueModal()">+ Issue Book</button>
+  </div>
+  <h2 class="section">Currently Issued (${active.length})</h2>
+  <div class="card" style="padding:0;">
+    ${active.length? active.map(t=>{
+      const b=STATE.books.find(x=>x.id===t.bookId), mem=STATE.members.find(x=>x.id===t.memberId);
+      const overdue = t.dueDate < todayISO();
+      const fine = fineFor(t);
+      return `<div class="list-item" style="padding:10px 12px;">
+        <div>
+          <b>${esc(b?b.title:'—')}</b><br>
+          <span style="font-size:11px; color:var(--muted);">${esc(mem?mem.name:'—')} · Due ${fmtDate(t.dueDate)}${overdue?` · Fine KES ${fine}`:''}</span>
+        </div>
+        <div style="text-align:right;">
+          ${statusBadge(t)}<br>
+          <div class="row" style="margin-top:6px; justify-content:flex-end;">
+            <button class="btn-sm btn-outline" onclick="renewLoan('${t.id}')">Renew</button>
+            <button class="btn-sm btn-primary" onclick="returnBook('${t.id}')">Return</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('') : `<div class="empty">No books currently issued</div>`}
+  </div>
+  `;
+}
+function openIssueModal(){
+  const availBooks = STATE.books.filter(b=>bookCopiesAvailable(b)>0);
+  document.getElementById('modalBody').innerHTML = `
+    <span class="close-x" onclick="closeModal()">✕</span>
+    <h3>Issue Book</h3>
+    <label>Book</label>
+    <select id="f_book">${availBooks.map(b=>`<option value="${b.id}">${esc(b.title)} (${bookCopiesAvailable(b)} avail)</option>`).join('') || '<option>No books available</option>'}</select>
+    <label>Member</label>
+    <select id="f_member">${STATE.members.map(m=>`<option value="${m.id}">${esc(m.name)} — ${m.type}</option>`).join('') || '<option>No members registered</option>'}</select>
+    <label>Issue Date</label><input id="f_issuedate" type="date" value="${todayISO()}">
+    <label>Due Date</label><input id="f_duedate" type="date" value="${addDays(todayISO(), STATE.settings.borrowPeriodDays||14)}">
+    <div class="row" style="margin-top:14px; justify-content:flex-end;">
+      <button class="btn-primary" onclick="issueBook()">Issue</button>
+    </div>
+  `;
+  showModal();
+}
+function issueBook(){
+  const bookId = document.getElementById('f_book').value;
+  const memberId = document.getElementById('f_member').value;
+  const issueDate = document.getElementById('f_issuedate').value;
+  const dueDate = document.getElementById('f_duedate').value;
+  if(!bookId||!memberId){ toast('Select book and member'); return; }
+  const member = STATE.members.find(x=>x.id===memberId);
+  const activeLoans = STATE.transactions.filter(t=>t.memberId===memberId && t.status==='issued').length;
+  const limit = member.type==='teacher' ? (STATE.settings.maxLoansTeacher||5) : (STATE.settings.maxLoansStudent||2);
+  if(activeLoans>=limit){ toast(`Borrowing limit reached (${limit})`); return; }
+  const book = STATE.books.find(x=>x.id===bookId);
+  if(bookCopiesAvailable(book)<=0){ toast('No copies available'); return; }
+  db.collection('transactions').add({ bookId, memberId, issueDate, dueDate, status:'issued' });
+  addNotification(`"${book.title}" issued to ${member.name}, due ${fmtDate(dueDate)}`);
+  closeModal(); toast('Book issued');
+}
+function returnBook(tid){
+  db.collection('transactions').doc(tid).update({ status:'returned', returnDate: todayISO() });
+  toast('Book returned');
+}
+function renewLoan(tid){
+  const t = STATE.transactions.find(x=>x.id===tid);
+  const newDue = addDays(todayISO(), STATE.settings.borrowPeriodDays||14);
+  db.collection('transactions').doc(tid).update({ dueDate:newDue, renewedAt: todayISO() });
+  toast('Loan renewed to '+fmtDate(newDue));
+}
+
+/* ============ INVENTORY ============ */
+let invTab='stocktake';
+function renderInventory(){
+  const tabs = [['stocktake','Stock Take'],['lost','Lost Books'],['damaged','Damaged'],['donated','Donated'],['purchases','Purchases']];
+  return `
+  <div class="row" style="margin-bottom:10px;">${tabs.map(([k,l])=>`<div class="tab ${invTab===k?'active':''}" onclick="invTab='${k}'; render();">${l}</div>`).join('')}</div>
+  ${invTab==='stocktake'?renderStocktake(): invTab==='lost'?renderLostDamaged('lost'): invTab==='damaged'?renderLostDamaged('damaged'): invTab==='donated'?renderDonated(): renderPurchases()}
+  `;
+}
+function renderStocktake(){
+  const total = totalBooks(), lost = STATE.books.reduce((a,b)=>a+(b.lost||0),0), damaged = STATE.books.reduce((a,b)=>a+(b.damaged||0),0);
+  return `
+  <div class="grid3">
+    <div class="stat"><div class="num">${total}</div><div class="lbl">Recorded Copies</div></div>
+    <div class="stat warn"><div class="num">${lost}</div><div class="lbl">Lost</div></div>
+    <div class="stat warn"><div class="num">${damaged}</div><div class="lbl">Damaged</div></div>
+  </div>
+  <div class="card"><table><tr><th>Title</th><th>Copies</th><th>Issued</th><th>Available</th></tr>
+  ${STATE.books.map(b=>`<tr><td>${esc(b.title)}</td><td>${b.copies||1}</td><td>${STATE.transactions.filter(t=>t.bookId===b.id&&t.status==='issued').length}</td><td>${bookCopiesAvailable(b)}</td></tr>`).join('') || '<tr><td class="empty" colspan=4>No books</td></tr>'}
+  </table></div>`;
+}
+function renderLostDamaged(kind){
+  const books = STATE.books.filter(b=>(b[kind]||0)>0);
+  return `
+  ${can('inventory')?`<button class="btn-outline" onclick="markLostDamaged('${kind}')">+ Mark Book as ${kind}</button>`:''}
+  <div class="card" style="margin-top:10px;">
+    ${books.length? books.map(b=>`<div class="list-item"><b>${esc(b.title)}</b><span class="badge danger">${b[kind]} ${kind}</span></div>`).join('') : `<div class="empty">No ${kind} books recorded</div>`}
+  </div>`;
+}
+function markLostDamaged(kind){
+  document.getElementById('modalBody').innerHTML = `
+    <span class="close-x" onclick="closeModal()">✕</span>
+    <h3>Mark Book as ${kind}</h3>
+    <label>Book</label><select id="f_ldbook">${STATE.books.map(b=>`<option value="${b.id}">${esc(b.title)}</option>`).join('')}</select>
+    <label>Quantity</label><input id="f_ldqty" type="number" min="1" value="1">
+    <div class="row" style="margin-top:14px; justify-content:flex-end;"><button class="btn-primary" onclick="confirmLostDamaged('${kind}')">Save</button></div>
+  `;
+  showModal();
+}
+function confirmLostDamaged(kind){
+  const bookId = document.getElementById('f_ldbook').value;
+  const qty = parseInt(document.getElementById('f_ldqty').value)||1;
+  const b = STATE.books.find(x=>x.id===bookId);
+  db.collection('books').doc(bookId).update({ [kind]: (b[kind]||0)+qty });
+  addNotification(`${qty} copy(ies) of "${b.title}" marked ${kind}`);
+  closeModal(); toast('Recorded');
+}
+function renderDonated(){
+  const donated = STATE.books.filter(b=>b.donated);
+  return `<div class="card">${donated.length? donated.map(b=>`<div class="list-item"><b>${esc(b.title)}</b><span class="chip">${esc(b.donor||'Anonymous')}</span></div>`).join(''):'<div class="empty">No donated books recorded. Mark a book donated from its edit screen (add "donor" note in Subject field or extend as needed).</div>'}</div>`;
+}
+function renderPurchases(){
+  return `
+  ${can('inventory')?`<button class="btn-outline" onclick="openPurchaseModal()">+ Record Purchase</button>`:''}
+  <div class="card" style="margin-top:10px;">
+    ${(STATE.settings.purchases||[]).length? STATE.settings.purchases.slice().reverse().map(p=>`<div class="list-item"><div><b>${esc(p.title)}</b><br><span style="font-size:11px;color:var(--muted);">${fmtDate(p.date)} · ${p.qty} copies</span></div><span class="chip">KES ${p.cost}</span></div>`).join('') : `<div class="empty">No purchases recorded</div>`}
+  </div>`;
+}
+function openPurchaseModal(){
+  document.getElementById('modalBody').innerHTML = `
+    <span class="close-x" onclick="closeModal()">✕</span>
+    <h3>Record Purchase</h3>
+    <label>Book Title</label><input id="f_ptitle" type="text">
+    <div class="grid2"><div><label>Quantity</label><input id="f_pqty" type="number" min="1" value="1"></div>
+    <div><label>Total Cost (KES)</label><input id="f_pcost" type="number" min="0"></div></div>
+    <label>Date</label><input id="f_pdate" type="date" value="${todayISO()}">
+    <div class="row" style="margin-top:14px; justify-content:flex-end;"><button class="btn-primary" onclick="savePurchase()">Save</button></div>
+  `;
+  showModal();
+}
+function savePurchase(){
+  const p = { title:document.getElementById('f_ptitle').value.trim(), qty:parseInt(document.getElementById('f_pqty').value)||1, cost:parseFloat(document.getElementById('f_pcost').value)||0, date:document.getElementById('f_pdate').value };
+  const purchases = STATE.settings.purchases||[];
+  purchases.push(p);
+  db.collection('meta').doc('settings').set({purchases}, {merge:true});
+  closeModal(); toast('Purchase recorded');
+}
+
+/* ============ REPORTS ============ */
+function renderReports(){
+  const today = todayISO();
+  const monthPrefix = today.slice(0,7);
+  const dailyIssues = STATE.transactions.filter(t=>t.issueDate===today);
+  const monthlyIssues = STATE.transactions.filter(t=>(t.issueDate||'').startsWith(monthPrefix));
+  const overdue = overdueList();
+  const borrowCounts = {};
+  STATE.transactions.forEach(t=>{ borrowCounts[t.bookId]=(borrowCounts[t.bookId]||0)+1; });
+  const mostBorrowed = Object.entries(borrowCounts).sort((a,b)=>b[1]-a[1]).slice(0,5)
+    .map(([id,n])=>({book:STATE.books.find(b=>b.id===id), n}));
+
+  return `
+  <h2 class="section">Quick Stats</h2>
+  <div class="grid3">
+    <div class="stat"><div class="num">${dailyIssues.length}</div><div class="lbl">Issued Today</div></div>
+    <div class="stat"><div class="num">${monthlyIssues.length}</div><div class="lbl">This Month</div></div>
+    <div class="stat danger"><div class="num">${overdue.length}</div><div class="lbl">Overdue</div></div>
+  </div>
+
+  <h2 class="section">Most Borrowed Books</h2>
+  <div class="card">
+    ${mostBorrowed.length? mostBorrowed.map(x=>`<div class="list-item"><b>${esc(x.book?x.book.title:'Unknown')}</b><span class="chip">${x.n} loans</span></div>`).join('') : `<div class="empty">No borrowing data yet</div>`}
+  </div>
+
+  <h2 class="section">Export</h2>
+  <div class="card">
+    <div class="row" style="flex-wrap:wrap;">
+      <button class="btn-outline" onclick="exportReport('daily','pdf')">Daily Issues (PDF)</button>
+      <button class="btn-outline" onclick="exportReport('monthly','pdf')">Monthly Circulation (PDF)</button>
+      <button class="btn-outline" onclick="exportReport('overdue','pdf')">Overdue Report (PDF)</button>
+      <button class="btn-outline" onclick="exportReport('inventory','pdf')">Inventory Report (PDF)</button>
+    </div>
+    <div class="row" style="flex-wrap:wrap; margin-top:8px;">
+      <button class="btn-outline" onclick="exportReport('daily','xlsx')">Daily (Excel)</button>
+      <button class="btn-outline" onclick="exportReport('monthly','xlsx')">Monthly (Excel)</button>
+      <button class="btn-outline" onclick="exportReport('overdue','xlsx')">Overdue (Excel)</button>
+      <button class="btn-outline" onclick="exportReport('inventory','xlsx')">Inventory (Excel)</button>
+    </div>
+  </div>
+  `;
+}
+function reportRows(kind){
+  const today = todayISO();
+  if(kind==='daily') return STATE.transactions.filter(t=>t.issueDate===today).map(t=>rowFor(t));
+  if(kind==='monthly') return STATE.transactions.filter(t=>(t.issueDate||'').startsWith(today.slice(0,7))).map(t=>rowFor(t));
+  if(kind==='overdue') return overdueList().map(t=>rowFor(t));
+  if(kind==='inventory') return STATE.books.map(b=>({Title:b.title, Author:b.author||'', Category:b.category||'', Copies:b.copies||1, Available:bookCopiesAvailable(b), Lost:b.lost||0, Damaged:b.damaged||0}));
+}
+function rowFor(t){
+  const b=STATE.books.find(x=>x.id===t.bookId), m=STATE.members.find(x=>x.id===t.memberId);
+  return { Book:b?b.title:'—', Member:m?m.name:'—', Issued:fmtDate(t.issueDate), Due:fmtDate(t.dueDate), Status:t.status };
+}
+function exportReport(kind, fmt){
+  const rows = reportRows(kind);
+  if(!rows.length){ toast('No data to export'); return; }
+  const titleMap={daily:'Daily Issue Report', monthly:'Monthly Circulation Report', overdue:'Overdue Books Report', inventory:'Inventory Report'};
+  if(fmt==='xlsx'){
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, kind);
+    XLSX.writeFile(wb, `${kind}_report_${todayISO()}.xlsx`);
+  } else {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(14); doc.text(STATE.settings.schoolName||"School Library", 14, 15);
+    doc.setFontSize(11); doc.text(titleMap[kind]+" — "+fmtDate(todayISO()), 14, 22);
+    doc.autoTable({ startY:28, head:[Object.keys(rows[0])], body: rows.map(r=>Object.values(r)) });
+    doc.save(`${kind}_report_${todayISO()}.pdf`);
+  }
+  toast('Report exported');
+}
+
+/* ============ NOTIFICATIONS ============ */
+function addNotification(msg){
+  db.collection('notifications').add({ msg, createdAt: new Date().toISOString() });
+}
+function renderNotify(){
+  const dueSoon = STATE.transactions.filter(t=>t.status==='issued' && daysBetween(todayISO(),t.dueDate)<=2 && t.dueDate>=todayISO());
+  const overdue = overdueList();
+  return `
+  <h2 class="section">Due Soon (2 days)</h2>
+  <div class="card">
+    ${dueSoon.length? dueSoon.map(t=>{const b=STATE.books.find(x=>x.id===t.bookId),m=STATE.members.find(x=>x.id===t.memberId);
+      return `<div class="list-item"><div><b>${esc(b?b.title:'—')}</b><br><span style="font-size:11px;color:var(--muted);">${esc(m?m.name:'—')}</span></div><span class="badge warn">Due ${fmtDate(t.dueDate)}</span></div>`;
+    }).join('') : `<div class="empty">Nothing due soon</div>`}
+  </div>
+  <h2 class="section">Overdue Alerts</h2>
+  <div class="card">
+    ${overdue.length? overdue.map(t=>{const b=STATE.books.find(x=>x.id===t.bookId),m=STATE.members.find(x=>x.id===t.memberId);
+      return `<div class="list-item"><div><b>${esc(b?b.title:'—')}</b><br><span style="font-size:11px;color:var(--muted);">${esc(m?m.name:'—')}</span></div><span class="badge danger">${daysBetween(t.dueDate,todayISO())}d late</span></div>`;
+    }).join('') : `<div class="empty">No overdue books</div>`}
+  </div>
+  <h2 class="section">Activity Log</h2>
+  <div class="card">
+    ${STATE.notifications.length? STATE.notifications.slice(0,20).map(n=>`<div class="list-item"><span>${esc(n.msg)}</span><span style="font-size:10px;color:var(--muted);">${fmtDate(n.createdAt)}</span></div>`).join('') : `<div class="empty">No activity yet</div>`}
+  </div>
+  `;
+}
+
+/* ============ SETTINGS ============ */
+function renderSettings(){
+  const s = STATE.settings;
+  return `
+  <h2 class="section">School Details</h2>
+  <div class="card">
+    <label>School Name</label><input id="s_name" type="text" value="${esc(s.schoolName)}">
+    <label>Logo Initials</label><input id="s_logo" type="text" maxlength="3" value="${esc(s.logoText)}">
+    <button class="btn-primary" style="margin-top:10px;" onclick="updateSchoolInfo()">Save</button>
+  </div>
+  <h2 class="section">Borrowing & Fines</h2>
+  <div class="card">
+    <div class="grid2">
+      <div><label>Borrowing Period (days)</label><input id="s_period" type="number" value="${s.borrowPeriodDays}"></div>
+      <div><label>Fine per day (KES)</label><input id="s_fine" type="number" value="${s.fineDailyRate}"></div>
+      <div><label>Max loans — Student</label><input id="s_maxs" type="number" value="${s.maxLoansStudent}"></div>
+      <div><label>Max loans — Teacher</label><input id="s_maxt" type="number" value="${s.maxLoansTeacher}"></div>
+    </div>
+    <button class="btn-primary" style="margin-top:10px;" onclick="updateBorrowSettings()">Save</button>
+  </div>
+  <h2 class="section">Access PINs</h2>
+  <div class="card">
+    <div class="grid2">
+      <div><label>Administrator</label><input id="p_admin" type="text" value="${esc(s.pins.admin)}"></div>
+      <div><label>Librarian</label><input id="p_lib" type="text" value="${esc(s.pins.librarian)}"></div>
+      <div><label>Teacher</label><input id="p_teach" type="text" value="${esc(s.pins.teacher)}"></div>
+      <div><label>Student</label><input id="p_stud" type="text" value="${esc(s.pins.student)}"></div>
+    </div>
+    <button class="btn-primary" style="margin-top:10px;" onclick="updatePins()">Save PINs</button>
+  </div>
+  <h2 class="section">Appearance</h2>
+  <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <span>Dark Mode</span>
+      <button class="btn-outline" onclick="toggleDark()">${s.darkMode?'On':'Off'}</button>
+    </div>
+  </div>
+  <h2 class="section">Backup & Restore</h2>
+  <div class="card">
+    <div class="row">
+      <button class="btn-outline" onclick="backupData()">Download Backup (JSON)</button>
+      <label class="btn-outline" style="display:inline-block;">Restore<input type="file" accept=".json" style="display:none;" onchange="restoreData(event)"></label>
+    </div>
+    <div style="font-size:11px; color:var(--muted); margin-top:8px;">Restoring overwrites current live data for all users. Use with care.</div>
+  </div>
+  `;
+}
+function updateSchoolInfo(){
+  STATE.settings.schoolName = document.getElementById('s_name').value.trim();
+  STATE.settings.logoText = document.getElementById('s_logo').value.trim();
+  saveSettings(); toast('Saved');
+}
+function updateBorrowSettings(){
+  STATE.settings.borrowPeriodDays = parseInt(document.getElementById('s_period').value)||14;
+  STATE.settings.fineDailyRate = parseFloat(document.getElementById('s_fine').value)||0;
+  STATE.settings.maxLoansStudent = parseInt(document.getElementById('s_maxs').value)||2;
+  STATE.settings.maxLoansTeacher = parseInt(document.getElementById('s_maxt').value)||5;
+  saveSettings(); toast('Saved');
+}
+function updatePins(){
+  STATE.settings.pins = {
+    admin: document.getElementById('p_admin').value.trim(),
+    librarian: document.getElementById('p_lib').value.trim(),
+    teacher: document.getElementById('p_teach').value.trim(),
+    student: document.getElementById('p_stud').value.trim(),
+  };
+  saveSettings(); toast('PINs updated');
+}
+function toggleDark(){
+  STATE.settings.darkMode = !STATE.settings.darkMode;
+  document.body.classList.toggle('dark', STATE.settings.darkMode);
+  saveSettings(); render();
+}
+function backupData(){
+  const data = { books:STATE.books, members:STATE.members, transactions:STATE.transactions, categories:STATE.categories, shelves:STATE.shelves, settings:STATE.settings, exportedAt:new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=`sanga_library_backup_${todayISO()}.json`; a.click();
+  URL.revokeObjectURL(url);
+}
+function restoreData(evt){
+  const file = evt.target.files[0]; if(!file) return;
+  if(!confirm('This will overwrite live data for everyone. Continue?')) return;
+  const reader = new FileReader();
+  reader.onload = async ()=>{
+    try{
+      const data = JSON.parse(reader.result);
+      const batch = db.batch();
+      for(const col of ['books','members','transactions','categories','shelves']){
+        const snap = await db.collection(col).get();
+        snap.docs.forEach(d=>batch.delete(d.ref));
+      }
+      await batch.commit();
+      for(const col of ['books','members','transactions','categories','shelves']){
+        for(const item of (data[col]||[])){ const {id,...rest}=item; await db.collection(col).add(rest); }
+      }
+      if(data.settings) await db.collection('meta').doc('settings').set(data.settings, {merge:true});
+      toast('Restore complete');
+    }catch(e){ toast('Restore failed: invalid file'); }
+  };
+  reader.readAsText(file);
+}
+
+/* ============ MODAL ============ */
+function showModal(){ document.getElementById('modalBg').classList.add('show'); }
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
+
+/* ============ INIT ============ */
+listen();
+window.addEventListener('load', ()=>{
+  const savedRole = sessionStorage.getItem('sanga_lib_role');
+  if(savedRole){ role=savedRole; document.getElementById('pinScreen').style.display='none'; document.getElementById('app').style.display='block';
+    document.getElementById('roleBadge').textContent = role.charAt(0).toUpperCase()+role.slice(1); buildNav(); render(); }
+});
+document.getElementById('pinInput')?.addEventListener('keydown', e=>{ if(e.key==='Enter') tryLogin(); });
+if('serviceWorker' in navigator){ /* PWA install-ready; no offline SW registered to keep single-file simplicity */ }
+</script>
+</body>
+</html>
